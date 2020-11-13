@@ -1,1 +1,8 @@
 setuptools>=40.0
+cloudshell-shell-core~=5.0
+cloudshell-cp-core~=2.0
+python-libmaas~=0.6.0
+cloudshell-shell-standards~=1.1
+cloudshell-shell-flows~=1.0
+cloudshell-automation-api>=9.2
+paramiko~=2.7.1
