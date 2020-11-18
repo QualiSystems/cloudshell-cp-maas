@@ -1,22 +1,20 @@
 from http import HTTPStatus
 
-from canonical.maas.flows import MaasDefaultSubnetFlow, MaasRequestBasedFlow
-from cloudshell.cp.core.models import (
-    CleanupNetwork,
-    CleanupNetworkResult,
-    DriverResponse,
+from cloudshell.cp.core.flows.cleanup_sandbox_infra import (
+    AbstractCleanupSandboxInfraFlow,
 )
-from cloudshell.cp.core.utils import single
 from maas.client.bones import CallError
 
 
-class MaasCleanupSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
-    def _delete_fabric(self, name):
-        """
+class MaasCleanupSandboxInfraFlow(AbstractCleanupSandboxInfraFlow):
+    def __init__(self, resource_config, reservation_info, maas_client, logger):
+        super().__init__(logger=logger)
+        self._resource_config = resource_config
+        self._reservation_info = reservation_info
+        self._maas_client = maas_client
 
-        :param name:
-        :return:
-        """
+    # todo: check if we need this code
+    def _delete_fabric(self, name):
         try:
             fabric = self._maas_client.fabrics.get(name)
         except CallError as e:
@@ -26,12 +24,8 @@ class MaasCleanupSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
 
         fabric.delete()
 
+    # todo: check if we need this code
     def _delete_subnet(self, name):
-        """
-
-        :param name:
-        :return:
-        """
         try:
             subnet = self._maas_client.subnets.get(name)
         except CallError as e:
@@ -41,18 +35,7 @@ class MaasCleanupSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
 
         subnet.delete()
 
-    def cleanup(self, request):
-        """
-
-        :param request:
-        :return:
-        """
-        # self._delete_subnet(name=self.DEFAULT_SUBNET_NAME)
-        # self._delete_fabric(name=self.DEFAULT_FABRIC_NAME)
-
-        actions = self._request_parser.convert_driver_request_to_actions(request)
-        cleanup_action = single(actions, lambda x: isinstance(x, CleanupNetwork))
-
-        action_result = CleanupNetworkResult(cleanup_action.actionId)
-
-        return DriverResponse([action_result]).to_driver_response_json()
+    def cleanup_sandbox_infra(self, request_actions):
+        # self._delete_subnet(name=self.DEFAULT_SUBNET_NAME)  # noqa: E800
+        # self._delete_fabric(name=self.DEFAULT_FABRIC_NAME)  # noqa: E800
+        pass

@@ -1,6 +1,4 @@
-import json
-
-from canonical.maas.flows import BaseMaasFlow
+from cloudshell.cp.core.flows.vm_details import AbstractVMDetailsFlow
 from cloudshell.cp.core.models import (
     VmDetailsData,
     VmDetailsNetworkInterface,
@@ -8,16 +6,18 @@ from cloudshell.cp.core.models import (
 )
 
 
-class MaasGetVMDetailsFlow(BaseMaasFlow):
-    def _get_vm_data(self, vm_uid, vm_name):
-        """
+class MaasGetVMDetailsFlow(AbstractVMDetailsFlow):
+    def __init__(self, resource_config, maas_client, cancellation_manager, logger):
+        super().__init__(logger=logger)
+        self._resource_config = resource_config
+        self._maas_client = maas_client
+        self._cancellation_manager = cancellation_manager
 
-        :param str vm_uid:
-        :param str vm_name:
-        :return:
-        """
-        machine = self._maas_client.machines.get(vm_uid)
+    def _get_vm_details(self, deployed_app):
         vm_network_data = []
+
+        with self._cancellation_manager:
+            machine = self._maas_client.get_machine(deployed_app.vmdetails.uid)
 
         data = [
             VmDetailsProperty(key="Architecture", value=machine.architecture),
@@ -35,7 +35,7 @@ class MaasGetVMDetailsFlow(BaseMaasFlow):
             ]
 
             for link in iface.links:
-                iface_id = hash(f"{iface.id }_{link.id}")
+                iface_id = hash(f"{iface.id}_{link.id}")
                 interface = VmDetailsNetworkInterface(
                     interfaceId=iface_id,
                     networkId=iface_id,
@@ -46,28 +46,9 @@ class MaasGetVMDetailsFlow(BaseMaasFlow):
                 vm_network_data.append(interface)
 
         vm_details_data = VmDetailsData(
-            vmInstanceData=data, vmNetworkData=vm_network_data, appName=vm_name
+            vmInstanceData=data,
+            vmNetworkData=vm_network_data,
+            appName=deployed_app.name,
         )
 
         return vm_details_data
-
-    def get_vms_details(self, requests):
-        """
-
-        :param requests:
-        :return:
-        """
-        results = []
-        json_requests = json.loads(requests)
-
-        for request in json_requests["items"]:
-            vm_name = request["deployedAppJson"]["name"]
-            vm_uid = request["deployedAppJson"]["vmdetails"]["uid"]
-            result = self._get_vm_data(vm_uid=vm_uid, vm_name=vm_name)
-            results.append(result)
-
-        result_json = json.dumps(
-            results, default=lambda o: o.__dict__, sort_keys=True, separators=(",", ":")
-        )
-
-        return result_json

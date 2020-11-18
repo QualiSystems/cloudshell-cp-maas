@@ -1,107 +1,58 @@
-from canonical.maas.flows import MaasDefaultSubnetFlow, MaasRequestBasedFlow
-from cloudshell.cp.core.models import (
-    CleanupNetwork,
-    DeployApp,
-    DeployAppResult,
-    DriverResponse,
-)
-from cloudshell.cp.core.utils import single
-from maas.client.enum import LinkMode, NodeStatus
+from cloudshell.cp.core.flows.deploy import AbstractDeployFlow
+from cloudshell.cp.core.request_actions.models import DeployAppResult
+
+from cloudshell.cp.maas import constants
+from cloudshell.cp.maas.exceptions import InterfaceNotFoundException
 
 
-class MaasDeployFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
-    MACHINE_INTERFACE_TPL = "Quali_{machine_name}"
-
-    def _get_free_machine(self, cpus, memory, disks, storage=None):
-        """
-
-        :param cpus:
-        :param memory:
-        :param disks:
-        :param storage:
-        :return:
-        """
-        available_machines = list(
-            filter(
-                lambda machine: all(
-                    [
-                        machine.status == NodeStatus.READY,
-                        cpus <= machine.cpus,
-                        memory <= machine.memory / 1024,
-                        disks <= len(machine.block_devices),
-                    ]
-                ),
-                self._maas_client.machines.list(),
-            )
-        )
-
-        available_machines = sorted(
-            available_machines,
-            key=lambda machine: (
-                machine.cpus,
-                machine.memory,
-                len(machine.block_devices),
-            ),
-        )
-
-        if not available_machines:
-            raise Exception(
-                f"There are no free machine for the given params: "
-                f"CPU Cores: {cpus}, "
-                f"RAM GiB: {memory},"
-                f"Disks: {disks}, "
-                f"Storage GB: {storage}"
-            )
-
-        return available_machines[0]
+class MaasDeployFlow(AbstractDeployFlow):
+    def __init__(self, resource_config, maas_client, cancellation_manager, logger):
+        super().__init__(logger=logger)
+        self._resource_config = resource_config
+        self._maas_client = maas_client
+        self._cancellation_manager = cancellation_manager
 
     def _reconnect_machine_to_sandbox_subnet(self, machine):
-        """
-
-        :param machine:
-        :return:
-        """
+        """Reconnect machine to the Sandbox subnet."""
         try:
             iface = machine.interfaces[0]
         except IndexError:
-            raise Exception(
+            raise InterfaceNotFoundException(
                 "Unable to connect machine to default subnet. No interface on machine"
             )
+        subnet = self._maas_client.get_subnet(constants.DEFAULT_SUBNET_NAME)
 
-        subnet = self._maas_client.subnets.get(self.DEFAULT_SUBNET_NAME)
-        iface.vlan = subnet.vlan
-        iface.save()
+        self._maas_client.reconnect_machine_interface(interface=iface, subnet=subnet)
+        self._maas_client.create_interface_link(interface=iface, subnet=subnet)
 
-        iface.links.create(subnet=subnet, mode=LinkMode.DHCP)
-
-    def deploy(self, request):
-        """
-
-        :param request:
-        :return:
-        """
-        actions = self._request_parser.convert_driver_request_to_actions(request)
-        deploy_action = single(actions, lambda x: isinstance(x, DeployApp))
-        attrs = deploy_action.actionParams.deployment.attributes
-
-        machine = self._get_free_machine(
-            cpus=int(attrs["Maas.MAAS Machine.CPU Cores"]),
-            memory=float(attrs["Maas.MAAS Machine.RAM GiB"]),
-            disks=int(attrs["Maas.MAAS Machine.Disks"]),
-            storage=float(attrs["Maas.MAAS Machine.Storage GB"]),
-        )
-
-        operating_system = attrs["Maas.MAAS Machine.Operation System"]
-        machine.deploy(distro_series=operating_system, wait=True)
-
-        self._reconnect_machine_to_sandbox_subnet(machine=machine)
-
-        deploy_result = DeployAppResult(
-            deploy_action.actionId,
-            vmUuid=machine.system_id,
-            vmName=operating_system,
-            vmDetailsData=None,
+    def _prepare_deploy_app_result(self, deployed_machine, deploy_app):
+        """Prepare Deploy App result for the CloudShell."""
+        return DeployAppResult(
+            actionId=deploy_app.actionId,
+            vmUuid=deployed_machine.system_id,
+            vmName=deploy_app.name,
+            vmDetailsData=None,  # todo: add VM details here (user, password, IP)
             deployedAppAdditionalData={},
         )
 
-        return DriverResponse([deploy_result]).to_driver_response_json()
+    def _deploy(self, request_actions):
+        deploy_app = request_actions.deploy_app
+
+        with self._cancellation_manager:
+            machine = self._maas_client.get_available_machine(
+                cpus=int(deploy_app.cpu_cores),
+                memory=float(deploy_app.ram),
+                disks=int(deploy_app.disks),
+                storage=float(deploy_app.storage),
+            )
+
+        with self._cancellation_manager:
+            machine.deploy(distro_series=deploy_app.operation_system, wait=True)
+
+        with self._cancellation_manager:
+            self._reconnect_machine_to_sandbox_subnet(machine=machine)
+
+        return self._prepare_deploy_app_result(
+            deployed_machine=machine,
+            deploy_app=deploy_app,
+        )

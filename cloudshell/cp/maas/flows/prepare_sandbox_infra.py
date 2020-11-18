@@ -1,24 +1,30 @@
 import os
-from http import HTTPStatus
 
-import paramiko
-from canonical.maas.flows import MaasDefaultSubnetFlow, MaasRequestBasedFlow
-from cloudshell.cp.core.models import (
-    CreateKeys,
-    CreateKeysActionResult,
-    DriverResponse,
-    PrepareCloudInfra,
-    PrepareCloudInfraResult,
-    PrepareSubnet,
-    PrepareSubnetActionResult,
+from cloudshell.cp.core.flows.prepare_sandbox_infra import (
+    AbstractPrepareSandboxInfraFlow,
 )
-from cloudshell.cp.core.utils import single
-from maas.client.bones import CallError
+from cloudshell.cp.core.utils import generate_ssh_key_pair
+
+from cloudshell.cp.maas import constants
 
 
-class MaasPrepareSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
+class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
     SSH_PRIVATE_KEY_FILE_NAME = "maas_id_rsa.ppk"
     SSH_PUBLIC_KEY_FILE_NAME = "maas_id_rsa.ppubk"
+
+    def __init__(
+        self,
+        resource_config,
+        reservation_info,
+        cancellation_manager,
+        maas_client,
+        logger,
+    ):
+        self._resource_config = resource_config
+        self._reservation_info = reservation_info
+        self._cancellation_manager = cancellation_manager
+        self._maas_client = maas_client
+        self._logger = logger
 
     @property
     def private_ssh_key_path(self):
@@ -32,64 +38,14 @@ class MaasPrepareSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
             self._resource_config.ssh_keypair_path, self.SSH_PUBLIC_KEY_FILE_NAME
         )
 
-    def _get_or_create_fabric(self, name):
-        """
-
-        :param name:
-        :return:
-        """
-        try:
-            return self._maas_client.fabrics.get(name)
-        except CallError as e:
-            if e.status == HTTPStatus.NOT_FOUND:
-                return self._maas_client.fabrics.create(name=name)
-            raise
-
-    def _get_or_create_subnet(self, name, cidr, gateway_ip, vlan, managed):
-        """
-
-        :param name:
-        :param cidr:
-        :param gateway_ip:
-        :param vlan:
-        :param managed:
-        :return:
-        """
-        try:
-            return self._maas_client.subnets.get(name)
-        except CallError as e:
-            if e.status == HTTPStatus.NOT_FOUND:
-                return self._maas_client.subnets.create(
-                    cidr=cidr,
-                    name=name,
-                    vlan=vlan,
-                    gateway_ip=gateway_ip or None,
-                    managed=managed,
-                )
-            raise
-
-    def _generate_ssh_key_pair(self, bits=1024):
-        """
-
-        :param bits:
-        :return:
-        """
-        key = paramiko.RSAKey.generate(bits)
-        public_key = f"{key.get_name()} {key.get_base64()}"
-
+    def _save_ssh_key_pair(self, private_key: str, public_key: str):
         with open(self.private_ssh_key_path, "w+") as f:
-            key.write_private_key(f)
+            f.write(private_key)
 
         with open(self.public_shh_key_path, "w+") as f:
             f.write(public_key)
 
-        return public_key
-
     def _ssh_keys_exists(self):
-        """
-
-        :rtype: bool
-        """
         return all(
             [
                 os.path.exists(self.private_ssh_key_path),
@@ -98,59 +54,30 @@ class MaasPrepareSandboxInfraFlow(MaasRequestBasedFlow, MaasDefaultSubnetFlow):
         )
 
     def _get_ssh_public_key(self):
-        """
-
-        :return:
-        """
         with open(self.public_shh_key_path, "r") as f:
             return f.read()
 
-    def prepare(self, request):
-        """
+    def prepare_subnets(self):
+        resource_conf = self._resource_config
+        fabric = self._maas_client.get_or_create_fabric(
+            name=constants.DEFAULT_FABRIC_NAME
+        )
 
-        :param request:
-        :return:
-        """
-        fabric = self._get_or_create_fabric(name=self.DEFAULT_FABRIC_NAME)
-
-        self._get_or_create_subnet(
-            name=self.DEFAULT_SUBNET_NAME,
-            cidr=self._resource_config.default_subnet,
-            gateway_ip=self._resource_config.default_gateway,
+        self._maas_client.get_or_create_subnet(
+            name=constants.DEFAULT_SUBNET_NAME,
+            cidr=resource_conf.default_subnet,
+            gateway_ip=resource_conf.default_gateway,
             vlan=fabric.vlans[0],
-            managed=self._resource_config.managed_allocation,
+            managed=resource_conf.managed_allocation,
         )
 
-        actions = self._request_parser.convert_driver_request_to_actions(request)
-        # ignore prepare infra actions
-        prep_network_action = single(
-            actions, lambda x: isinstance(x, PrepareCloudInfra)
-        )
-        prep_network_action_result = PrepareCloudInfraResult(
-            prep_network_action.actionId
-        )
-
-        prep_subnet_action = single(actions, lambda x: isinstance(x, PrepareSubnet))
-        prep_subnet_action_result = PrepareSubnetActionResult(
-            prep_subnet_action.actionId
-        )
-
+    def create_ssh_keys(self):
         if self._ssh_keys_exists():
             public_key = self._get_ssh_public_key()
         else:
-            public_key = self._generate_ssh_key_pair()
+            private_key, public_key = generate_ssh_key_pair()
+            self._save_ssh_key_pair(private_key=private_key, public_key=public_key)
             # send to MAAS only public key
-            self._maas_client.ssh_keys.create(key=public_key)
+            self._maas_client.create_ssh_key(public_key)
 
-        access_keys_action = single(actions, lambda x: isinstance(x, CreateKeys))
-        access_keys_action_results = CreateKeysActionResult(
-            actionId=access_keys_action.actionId, accessKey=public_key
-        )
-
-        action_results = [
-            prep_network_action_result,
-            prep_subnet_action_result,
-            access_keys_action_results,
-        ]
-
-        return DriverResponse(action_results).to_driver_response_json()
+        return public_key
