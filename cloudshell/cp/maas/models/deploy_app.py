@@ -1,9 +1,10 @@
 from cloudshell.cp.core.request_actions.models import DeployApp
-from cloudshell.cp.vcenter import constants
 from cloudshell.shell.standards.core.resource_config_entities import (
     ResourceAttrRO,
     ResourceBoolAttrRO,
 )
+
+from cloudshell.cp.maas import constants
 
 
 class ResourceAttrRODeploymentPath(ResourceAttrRO):
@@ -26,7 +27,6 @@ class MaasMachineAttributeNames:
 
 class MaasMachineDeployApp(DeployApp):
     ATTR_NAMES = MaasMachineAttributeNames
-
     DEPLOYMENT_PATH = constants.MAAS_MACHINE_DEPLOYMENT_PATH
 
     cpu_cores = ResourceAttrRODeploymentPath(ATTR_NAMES.cpu_cores)

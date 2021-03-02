@@ -1,7 +1,6 @@
 from cloudshell.cp.core.flows.deploy import AbstractDeployFlow
 from cloudshell.cp.core.request_actions.models import DeployAppResult
 
-from cloudshell.cp.maas import constants
 from cloudshell.cp.maas.exceptions import InterfaceNotFoundException
 
 
@@ -20,7 +19,10 @@ class MaasDeployFlow(AbstractDeployFlow):
             raise InterfaceNotFoundException(
                 "Unable to connect machine to default subnet. No interface on machine"
             )
-        subnet = self._maas_client.get_subnet(constants.DEFAULT_SUBNET_NAME)
+        subnet = self._maas_client.get_subnet(
+            subnet_name=self._resource_config.default_subnet,
+            fabric_name=self._resource_config.default_fabric,
+        )
 
         self._maas_client.reconnect_machine_interface(interface=iface, subnet=subnet)
         self._maas_client.create_interface_link(interface=iface, subnet=subnet)

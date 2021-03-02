@@ -1,5 +1,5 @@
 from cloudshell.cp.core.flows.vm_details import AbstractVMDetailsFlow
-from cloudshell.cp.core.models import (
+from cloudshell.cp.core.request_actions.models import (
     VmDetailsData,
     VmDetailsNetworkInterface,
     VmDetailsProperty,

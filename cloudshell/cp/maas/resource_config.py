@@ -2,7 +2,6 @@ from cloudshell.shell.standards.core.resource_config_entities import (
     GenericResourceConfig,
     PasswordAttrRO,
     ResourceAttrRO,
-    ResourceBoolAttrRO,
 )
 
 from cloudshell.cp.maas.constants import SHELL_NAME
@@ -13,25 +12,13 @@ class ResourceAttrROShellName(ResourceAttrRO):
         super().__init__(name, namespace)
 
 
-class ResourceBoolAttrROShellName(ResourceBoolAttrRO):
-    def __init__(
-        self,
-        name: str,
-        namespace=ResourceBoolAttrRO.NAMESPACE.SHELL_NAME,
-        *args,
-        **kwargs
-    ):
-        super().__init__(name, namespace, *args, **kwargs)
-
-
 class MaasAttributeNames:
     api_user = "User"
     api_password = "Password"
     api_scheme = "Scheme"
     api_port = "Port"
+    default_fabric = "Default Fabric"
     default_subnet = "Default Subnet"
-    default_gateway = "Default Gateway IP"
-    managed_allocation = "Managed Allocation"
     ssh_keypair_path = "SSH Keypair Path"
 
 
@@ -44,11 +31,8 @@ class MaasResourceConfig(GenericResourceConfig):
     )
     api_scheme = ResourceAttrROShellName(ATTR_NAMES.api_scheme)
     api_port = ResourceAttrROShellName(ATTR_NAMES.api_port)
+    default_fabric = ResourceAttrROShellName(ATTR_NAMES.default_fabric)
     default_subnet = ResourceAttrROShellName(ATTR_NAMES.default_subnet)
-    default_gateway = ResourceAttrROShellName(ATTR_NAMES.default_gateway)
-    managed_allocation = ResourceBoolAttrROShellName(
-        ATTR_NAMES.managed_allocation, default=True
-    )
     ssh_keypair_path = ResourceAttrROShellName(ATTR_NAMES.ssh_keypair_path)
 
     @classmethod

@@ -17,9 +17,16 @@ class MaasAPIClient:
         self._port = port
         self._scheme = scheme
         self._logger = logger
-        self._api = self._get_api()
+        self._api = None
 
-    def _get_api(self):
+    @property
+    def api(self):
+        if self._api is None:
+            self._api = self._initialize_api()
+
+        return self._api
+
+    def _initialize_api(self):
         self._logger.info("Initializing MAAS API client...")
 
         return login(
@@ -31,7 +38,7 @@ class MaasAPIClient:
 
     def get_machine(self, uuid: str):
         """Get machine by its uuid."""
-        return self._api.machines.get(uuid)
+        return self.api.machines.get(uuid)
 
     def get_available_machine(
         self, cpus: int, memory: float, disks: int, storage: float
@@ -47,7 +54,7 @@ class MaasAPIClient:
                         disks <= len(machine.block_devices),
                     ]
                 ),
-                self._api.machines.list(),
+                self.api.machines.list(),
             )
         )
 
@@ -71,33 +78,30 @@ class MaasAPIClient:
 
         return available_machines[0]
 
-    def get_or_create_fabric(self, name: str):
-        """Get or create fabric by name."""
+    def get_fabric(self, name: str):
+        """Get Fabric by name."""
         try:
-            return self._api.fabrics.get(name)
+            return self.api.fabrics.get(name)
         except CallError as e:
             if e.status == HTTPStatus.NOT_FOUND:
-                return self._api.fabrics.create(name=name)
-            raise
-
-    def get_or_create_subnet(self, name, cidr, gateway_ip, vlan, managed):
-        """Get or create subnet."""
-        try:
-            return self.get_subnet(name)
-        except CallError as e:
-            if e.status == HTTPStatus.NOT_FOUND:
-                return self._api.subnets.create(
-                    cidr=cidr,
-                    name=name,
-                    vlan=vlan,
-                    gateway_ip=gateway_ip or None,
-                    managed=managed,
+                raise exceptions.FabricNotFoundException(
+                    f"Failed to find Fabric '{name}'"
                 )
             raise
 
-    def get_subnet(self, name: str):
-        """Get Subnet by name."""
-        return self._api.subnets.get(name)
+    def get_subnet(self, subnet_name: str, fabric_name: str):
+        fabric = self.get_fabric(fabric_name)
+
+        for subnet in self.api.subnets.list():
+            if (
+                any([subnet.name == subnet_name, subnet.cidr == subnet_name])
+                and subnet.vlan.fabric.id == fabric.id
+            ):
+                return subnet
+
+        raise exceptions.SubnetNotFoundException(
+            f"Failed to find Subnet '{subnet_name}' under Fabric '{fabric_name}'"
+        )
 
     def create_interface_link(self, interface, subnet, mode=LinkMode.DHCP):
         """Create Link for the given Interface."""
@@ -120,4 +124,4 @@ class MaasAPIClient:
         )
 
     def create_ssh_key(self, public_key: str):
-        self._api.ssh_keys.create(key=public_key)
+        self.api.ssh_keys.create(key=public_key)

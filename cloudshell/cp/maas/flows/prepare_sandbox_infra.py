@@ -5,8 +5,6 @@ from cloudshell.cp.core.flows.prepare_sandbox_infra import (
 )
 from cloudshell.cp.core.utils import generate_ssh_key_pair
 
-from cloudshell.cp.maas import constants
-
 
 class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
     SSH_PRIVATE_KEY_FILE_NAME = "maas_id_rsa.ppk"
@@ -58,18 +56,7 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
             return f.read()
 
     def prepare_subnets(self):
-        resource_conf = self._resource_config
-        fabric = self._maas_client.get_or_create_fabric(
-            name=constants.DEFAULT_FABRIC_NAME
-        )
-
-        self._maas_client.get_or_create_subnet(
-            name=constants.DEFAULT_SUBNET_NAME,
-            cidr=resource_conf.default_subnet,
-            gateway_ip=resource_conf.default_gateway,
-            vlan=fabric.vlans[0],
-            managed=resource_conf.managed_allocation,
-        )
+        pass
 
     def create_ssh_keys(self):
         if self._ssh_keys_exists():
