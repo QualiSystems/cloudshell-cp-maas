@@ -8,8 +8,8 @@ class MaasDeleteFlow:
         machine = self._maas_client.get_machine(deployed_app.vmdetails.uid)
         machine.release()
         # delete link to default fabric and subnet
-        try:
-            iface = machine.interfaces[0]
-            iface.disconnect()
-        except IndexError:
-            pass
+        # try:
+        #     iface = machine.interfaces[0]
+        #     iface.disconnect()
+        # except IndexError:
+        #     pass

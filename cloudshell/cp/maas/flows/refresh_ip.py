@@ -1,6 +1,3 @@
-from cloudshell.cp.maas import constants
-
-
 class MaasRemoteRefreshIPFlow:
     def __init__(
         self, resource_config, maas_client, cancellation_manager, cs_api, logger
@@ -15,9 +12,8 @@ class MaasRemoteRefreshIPFlow:
         with self._cancellation_manager:
             machine = self._maas_client.get_machine(deployed_app.vmdetails.uid)
             ip_address = self._maas_client.get_machine_ip(
-                machine=machine, subnet_name=constants.DEFAULT_SUBNET_NAME
+                machine=machine, subnet_name=self._resource_config.default_subnet
             )
-
         self._cs_api.UpdateResourceAddress(
             resourceFullPath=deployed_app.name,
             resourceAddress=ip_address,

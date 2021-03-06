@@ -55,10 +55,13 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
         with open(self.public_shh_key_path, "r") as f:
             return f.read()
 
-    def prepare_subnets(self):
+    def prepare_subnets(self, request_actions):
+        return {}
+
+    def prepare_cloud_infra(self, request_actions):
         pass
 
-    def create_ssh_keys(self):
+    def create_ssh_keys(self, request_actions):
         if self._ssh_keys_exists():
             public_key = self._get_ssh_public_key()
         else:

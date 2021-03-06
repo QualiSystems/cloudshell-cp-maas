@@ -23,6 +23,7 @@ class MaasMachineAttributeNames:
     disks = "Disks"
     storage = "Storage GB"
     operation_system = "Operation System"
+    distribution = "Distribution"
 
 
 class MaasMachineDeployApp(DeployApp):
@@ -34,3 +35,4 @@ class MaasMachineDeployApp(DeployApp):
     disks = ResourceAttrRODeploymentPath(ATTR_NAMES.disks)
     storage = ResourceAttrRODeploymentPath(ATTR_NAMES.storage)
     operation_system = ResourceAttrRODeploymentPath(ATTR_NAMES.operation_system)
+    distribution = ResourceAttrRODeploymentPath(ATTR_NAMES.distribution)
