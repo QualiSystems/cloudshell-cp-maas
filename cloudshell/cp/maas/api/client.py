@@ -58,8 +58,7 @@ class MaasAPIClient:
         cpus: int,
         memory: float,
         disks: int,
-        storage: float,
-        pool: str
+        storage: float
     ):
         """Get first available machine with given params."""
         available_machines = list(
@@ -67,7 +66,7 @@ class MaasAPIClient:
                 lambda machine: all(
                     [
                         machine.status == NodeStatus.READY,
-                        machine.pool.name == pool,
+                        machine.pool.name == self._pool,
                         cpus <= machine.cpus,
                         memory <= machine.memory / 1024,
                         disks <= len(machine.block_devices),

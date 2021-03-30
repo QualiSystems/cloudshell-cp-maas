@@ -55,6 +55,10 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
         with open(self.public_shh_key_path, "r") as f:
             return f.read()
 
+    def _get_ssh_private_key(self):
+        with open(self.public_shh_key_path, "r") as f:
+            return f.read()
+
     def prepare_subnets(self, request_actions):
 
         return {}
@@ -65,7 +69,7 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
     # ToDo check why keys are not created on maas
     def create_ssh_keys(self, request_actions):
         if self._ssh_keys_exists():
-            public_key = self._get_ssh_public_key()
+            private_key = self._get_ssh_private_key()
         else:
             private_key, public_key = generate_ssh_key_pair()
             self._save_ssh_key_pair(private_key=private_key, public_key=public_key)
