@@ -43,7 +43,8 @@ class MaasGetVMDetailsFlow(AbstractVMDetailsFlow):
                     networkData=network_data,
                     privateIpAddress=link.ip_address,
                 )
-                vm_network_data.append(interface)
+                if link.subnet == self._resource_config.default_subnet:
+                    vm_network_data.append(interface)
 
         vm_details_data = VmDetailsData(
             vmInstanceData=data,

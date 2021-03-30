@@ -7,8 +7,8 @@ from cloudshell.cp.core.utils import generate_ssh_key_pair
 
 
 class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
-    SSH_PRIVATE_KEY_FILE_NAME = "maas_id_rsa.ppk"
-    SSH_PUBLIC_KEY_FILE_NAME = "maas_id_rsa.ppubk"
+    SSH_PRIVATE_KEY_FILE_NAME = "maas_id_rsa_priv"
+    SSH_PUBLIC_KEY_FILE_NAME = "maas_id_rsa_pub"
 
     def __init__(
         self,
@@ -56,11 +56,13 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
             return f.read()
 
     def prepare_subnets(self, request_actions):
+
         return {}
 
     def prepare_cloud_infra(self, request_actions):
         pass
 
+    # ToDo check why keys are not created on maas
     def create_ssh_keys(self, request_actions):
         if self._ssh_keys_exists():
             public_key = self._get_ssh_public_key()
@@ -70,4 +72,4 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
             # send to MAAS only public key
             self._maas_client.create_ssh_key(public_key)
 
-        return public_key
+        return private_key

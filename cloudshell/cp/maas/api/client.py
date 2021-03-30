@@ -1,6 +1,9 @@
+import time
+from datetime import datetime, timedelta
 from http import HTTPStatus
 
 from maas.client import login
+from maas.client.viscera.machines import Machine
 from maas.client.bones import CallError
 from maas.client.enum import LinkMode, NodeStatus
 
@@ -10,13 +13,14 @@ from cloudshell.cp.maas import exceptions
 class MaasAPIClient:
     MACHINE_INTERFACE_TPL = "Quali_{machine_name}"
 
-    def __init__(self, address, user, password, port, scheme, logger):
+    def __init__(self, address, user, password, port, scheme, pool, logger):
         self._address = address
         self._user = user
         self._password = password
         self._port = port
         self._scheme = scheme
         self._logger = logger
+        self._pool = pool
         self._api = None
 
     @property
@@ -36,12 +40,26 @@ class MaasAPIClient:
             insecure=True,
         )
 
-    def get_machine(self, uuid: str):
+    def get_machine(self, uuid: str, timeout=6, wait_time=5) -> Machine:
         """Get machine by its uuid."""
-        return self.api.machines.get(uuid)
+        timeout_time = datetime.now() + timedelta(seconds=timeout * 60)
+        while datetime.now() <= timeout_time:
+            try:
+                machine = next((x for x in self.api.machines.list() if x.system_id == uuid
+                                                                    and x.pool.name == self._pool),
+                               None)
+                self._logger.info(f"Machine: {repr(machine)} Status: {repr(machine.status)}")
+                return machine
+            except Exception:
+                self._logger.warning("Error happened while waiting to response from MAAS", exc_info=True)
 
     def get_available_machine(
-        self, cpus: int, memory: float, disks: int, storage: float
+        self,
+        cpus: int,
+        memory: float,
+        disks: int,
+        storage: float,
+        pool: str
     ):
         """Get first available machine with given params."""
         available_machines = list(
@@ -49,6 +67,7 @@ class MaasAPIClient:
                 lambda machine: all(
                     [
                         machine.status == NodeStatus.READY,
+                        machine.pool.name == pool,
                         cpus <= machine.cpus,
                         memory <= machine.memory / 1024,
                         disks <= len(machine.block_devices),
@@ -116,7 +135,7 @@ class MaasAPIClient:
         """Get Machine IP address from the default subnet."""
         for iface in machine.interfaces:
             for link in iface.links:
-                if link.subnet.name == subnet_name:
+                if link.subnet.name == subnet_name or link.subnet.cidr == subnet_name:
                     return link.ip_address
 
         raise exceptions.IPAddressNotFoundException(

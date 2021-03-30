@@ -18,6 +18,7 @@ class MaasAttributeNames:
     api_scheme = "Scheme"
     api_port = "Port"
     default_fabric = "Default Fabric"
+    default_pool = "Default Pool"
     default_subnet = "Default Subnet"
     ssh_keypair_path = "SSH Keypair Path"
 
@@ -32,6 +33,7 @@ class MaasResourceConfig(GenericResourceConfig):
     api_scheme = ResourceAttrROShellName(ATTR_NAMES.api_scheme)
     api_port = ResourceAttrROShellName(ATTR_NAMES.api_port)
     default_fabric = ResourceAttrROShellName(ATTR_NAMES.default_fabric)
+    default_pool = ResourceAttrROShellName(ATTR_NAMES.default_pool)
     default_subnet = ResourceAttrROShellName(ATTR_NAMES.default_subnet)
     ssh_keypair_path = ResourceAttrROShellName(ATTR_NAMES.ssh_keypair_path)
 

@@ -71,21 +71,18 @@ class MaasDeployFlow(AbstractDeployFlow):
             except Exception:
                 self._logger.warning("Error happened during deployment", exc_info=True)
 
+        time.sleep(180)
         wait_time = 5
         timeout = 30 * 60
         timeout_time = datetime.now() + timedelta(seconds=timeout)
 
         while datetime.now() <= timeout_time:
-            try:
-                machine = self._maas_client.get_machine(uuid)
-                self._logger.info(f"Machine: {repr(machine)} Status: {repr(machine.status)}")
+            machine = self._maas_client.get_machine(uuid)
+            self._logger.info(f"Machine: {repr(machine)} Status: {repr(machine.status)}")
 
-                if machine.status == NodeStatus.DEPLOYED:
-                    break
-
-                time.sleep(wait_time)
-            except Exception:
-                self._logger.warning("Error happened while waiting for machine to be deployed", exc_info=True)
+            if machine.status == NodeStatus.DEPLOYED:
+                break
+            time.sleep(wait_time)
 
             if machine.status == NodeStatus.FAILED_DEPLOYMENT:
                 raise Exception(f"Failed to deploy Machine. Machine status: {repr(machine.status)}")
