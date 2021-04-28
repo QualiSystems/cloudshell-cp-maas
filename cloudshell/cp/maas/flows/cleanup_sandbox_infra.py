@@ -5,12 +5,16 @@ from cloudshell.cp.core.flows.cleanup_sandbox_infra import (
 )
 from maas.client.bones import CallError
 
+from cloudshell.cp.maas.api.sandbox_api import CSAPIHelper
+from cloudshell.cp.maas.flows.prepare_sandbox_infra import MaasPrepareSandboxInfraFlow
+
 
 class MaasCleanupSandboxInfraFlow(AbstractCleanupSandboxInfraFlow):
-    def __init__(self, resource_config, reservation_info, maas_client, logger):
+    def __init__(self, resource_config, reservation_info, maas_client, api, logger):
         super().__init__(logger=logger)
         self._resource_config = resource_config
         self._reservation_info = reservation_info
+        self._api_helper = CSAPIHelper(api, reservation_info.reservation_id)
         self._maas_client = maas_client
 
     # todo: check if we need this code
@@ -36,6 +40,7 @@ class MaasCleanupSandboxInfraFlow(AbstractCleanupSandboxInfraFlow):
         subnet.delete()
 
     def cleanup_sandbox_infra(self, request_actions):
+        id = self._api_helper.get_sandbox_data_item(MaasPrepareSandboxInfraFlow.SSH_PRIVATE_KEY_ID)  # noqa: E800
+        self._maas_client.remove_ssh_key(id)
         # self._delete_subnet(name=self.DEFAULT_SUBNET_NAME)  # noqa: E800
         # self._delete_fabric(name=self.DEFAULT_FABRIC_NAME)  # noqa: E800
-        pass

@@ -5,6 +5,7 @@ from cloudshell.shell.standards.core.resource_config_entities import (
 )
 
 from cloudshell.cp.maas import constants
+from cloudshell.cp.maas.models.machine_disk import MachineDisk
 
 
 class ResourceAttrRODeploymentPath(ResourceAttrRO):
@@ -21,9 +22,11 @@ class MaasMachineAttributeNames:
     cpu_cores = "CPU Cores"
     ram = "RAM GiB"
     disks = "Disks"
+    disks_layout = "Disks layout"
     storage = "Storage GB"
     operation_system = "Operation System"
     distribution = "Distribution"
+    hostname = "Hostname"
 
 
 class MaasMachineDeployApp(DeployApp):
@@ -32,7 +35,13 @@ class MaasMachineDeployApp(DeployApp):
 
     cpu_cores = ResourceAttrRODeploymentPath(ATTR_NAMES.cpu_cores)
     ram = ResourceAttrRODeploymentPath(ATTR_NAMES.ram)
-    disks = ResourceAttrRODeploymentPath(ATTR_NAMES.disks)
+    _disks = ResourceAttrRODeploymentPath(ATTR_NAMES.disks_layout)
+    # disks = MachineDiskFactory(ResourceAttrRODeploymentPath(ATTR_NAMES.disks))
     storage = ResourceAttrRODeploymentPath(ATTR_NAMES.storage)
     operation_system = ResourceAttrRODeploymentPath(ATTR_NAMES.operation_system)
     distribution = ResourceAttrRODeploymentPath(ATTR_NAMES.distribution)
+    hostname = ResourceAttrRODeploymentPath(ATTR_NAMES.hostname)
+
+    @property
+    def disks(self):
+        return [MachineDisk(x) for x in self._disks.split("|")]

@@ -27,6 +27,8 @@ class MaasGetVMDetailsFlow(AbstractVMDetailsFlow):
             VmDetailsProperty(key="Disks", value=len(machine.block_devices)),
             VmDetailsProperty(key="Distro Series", value=machine.distro_series),
             VmDetailsProperty(key="Operation System", value=machine.osystem),
+            VmDetailsProperty(key="Hostname", value=machine.hostname),
+            VmDetailsProperty(key="FQDN", value=machine.fqdn),
         ]
 
         for iface in machine.interfaces:

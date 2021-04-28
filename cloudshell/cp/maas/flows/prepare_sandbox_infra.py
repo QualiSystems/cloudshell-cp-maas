@@ -5,58 +5,44 @@ from cloudshell.cp.core.flows.prepare_sandbox_infra import (
 )
 from cloudshell.cp.core.utils import generate_ssh_key_pair
 
+from cloudshell.cp.maas.api.sandbox_api import CSAPIHelper
+
 
 class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
-    SSH_PRIVATE_KEY_FILE_NAME = "maas_id_rsa_priv"
-    SSH_PUBLIC_KEY_FILE_NAME = "maas_id_rsa_pub"
+    SSH_PRIVATE_KEY_NAME = "maas_rsa_priv_key"
+    SSH_PRIVATE_KEY_ID = "maas_rsa_priv_key_id"
 
-    def __init__(
-        self,
-        resource_config,
-        reservation_info,
-        cancellation_manager,
-        maas_client,
-        logger,
-    ):
+    def __init__(self, resource_config, reservation_info, cancellation_manager, maas_client, api, logger):
+        super().__init__(logger)
         self._resource_config = resource_config
         self._reservation_info = reservation_info
         self._cancellation_manager = cancellation_manager
+        self._api = api
+        self._api_helper = CSAPIHelper(api, reservation_info.reservation_id)
         self._maas_client = maas_client
-        self._logger = logger
 
     @property
     def private_ssh_key_path(self):
-        return os.path.join(
-            self._resource_config.ssh_keypair_path, self.SSH_PRIVATE_KEY_FILE_NAME
+        if self._reservation_info.reservation_id:
+            return os.path.join(self._resource_config.ssh_keypair_path, self._reservation_info.reservation_id
         )
 
     @property
-    def public_shh_key_path(self):
+    def public_ssh_key_path(self):
         return os.path.join(
             self._resource_config.ssh_keypair_path, self.SSH_PUBLIC_KEY_FILE_NAME
         )
 
-    def _save_ssh_key_pair(self, private_key: str, public_key: str):
+    def _save_ssh_key_pair(self, private_key: str):
         with open(self.private_ssh_key_path, "w+") as f:
             f.write(private_key)
 
-        with open(self.public_shh_key_path, "w+") as f:
-            f.write(public_key)
-
-    def _ssh_keys_exists(self):
-        return all(
-            [
-                os.path.exists(self.private_ssh_key_path),
-                os.path.exists(self.public_shh_key_path),
-            ]
-        )
-
     def _get_ssh_public_key(self):
-        with open(self.public_shh_key_path, "r") as f:
+        with open(self.public_ssh_key_path, "r") as f:
             return f.read()
 
     def _get_ssh_private_key(self):
-        with open(self.public_shh_key_path, "r") as f:
+        with open(self.private_ssh_key_path, "r") as f:
             return f.read()
 
     def prepare_subnets(self, request_actions):
@@ -68,12 +54,11 @@ class MaasPrepareSandboxInfraFlow(AbstractPrepareSandboxInfraFlow):
 
     # ToDo check why keys are not created on maas
     def create_ssh_keys(self, request_actions):
-        if self._ssh_keys_exists():
-            private_key = self._get_ssh_private_key()
-        else:
+        private_key = self._api_helper.get_sandbox_data_item(self.SSH_PRIVATE_KEY_NAME)
+        if not private_key:
             private_key, public_key = generate_ssh_key_pair()
-            self._save_ssh_key_pair(private_key=private_key, public_key=public_key)
-            # send to MAAS only public key
             self._maas_client.create_ssh_key(public_key)
+            self._api_helper.add_sandbox_data_item(self.SSH_PRIVATE_KEY_NAME, private_key)
+            self._api_helper.add_sandbox_data_item(self.SSH_PRIVATE_KEY_ID, private_key)
 
         return private_key
