@@ -69,7 +69,7 @@ class MaasAPIClient:
                         machine.pool.name == self._pool,
                         cpus <= machine.cpus,
                         memory <= machine.memory / 1024,
-                        disks <= machine.block_devices,
+                        disks <= len(machine.block_devices),
                     ]
                 ),
                 self.api.machines.list(),
@@ -146,6 +146,3 @@ class MaasAPIClient:
 
     def get_ssh_key(self, id: int):
         return self.api.ssh_keys.get(id=id)
-
-    def remove_ssh_key(self, id: int):
-        return self.api.ssh_keys.delete(id=id)

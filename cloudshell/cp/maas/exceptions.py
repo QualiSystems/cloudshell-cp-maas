@@ -22,6 +22,10 @@ class MachineNotFoundException(BaseMaasException):
     """Machine not found."""
 
 
+class DiskNotFoundException(BaseMaasException):
+    """Machine not found."""
+
+
 class InterfaceNotFoundException(BaseMaasException):
     """Interface on the machine was not found."""
 

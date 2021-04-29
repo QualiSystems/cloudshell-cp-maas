@@ -3,6 +3,8 @@ from http import HTTPStatus
 from cloudshell.cp.core.flows.cleanup_sandbox_infra import (
     AbstractCleanupSandboxInfraFlow,
 )
+
+from cloudshell.cp.maas.models.cs_maas_ssh_key import CSSSHKey
 from maas.client.bones import CallError
 
 from cloudshell.cp.maas.api.sandbox_api import CSAPIHelper
@@ -41,6 +43,7 @@ class MaasCleanupSandboxInfraFlow(AbstractCleanupSandboxInfraFlow):
 
     def cleanup_sandbox_infra(self, request_actions):
         id = self._api_helper.get_sandbox_data_item(MaasPrepareSandboxInfraFlow.SSH_PRIVATE_KEY_ID)  # noqa: E800
-        self._maas_client.remove_ssh_key(id)
+        key = self._maas_client.get_ssh_key(id)
+        CSSSHKey(key).delete()
         # self._delete_subnet(name=self.DEFAULT_SUBNET_NAME)  # noqa: E800
         # self._delete_fabric(name=self.DEFAULT_FABRIC_NAME)  # noqa: E800

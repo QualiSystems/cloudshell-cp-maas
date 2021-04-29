@@ -4,7 +4,7 @@ import time
 
 from cloudshell.cp.core.flows.deploy import AbstractDeployFlow
 from cloudshell.cp.core.request_actions.models import DeployAppResult
-from cloudshell.cp.maas.exceptions import InterfaceNotFoundException, MachineNotFoundException
+from cloudshell.cp.maas.exceptions import InterfaceNotFoundException, MachineNotFoundException, DiskNotFoundException
 from maas.client.viscera.machines import NodeStatus
 
 from cloudshell.cp.maas.models.machine_disk import MachineDisk
@@ -154,9 +154,11 @@ class MaasDeployFlow(AbstractDeployFlow):
 
             machine = self._maas_client.get_machine(machine.system_id)
             disk = machine.block_devices.by_name.get(requested_disk.disk_name, None)
+            if not disk:
+                raise DiskNotFoundException(f"Unable to get requested {requested_disk.disk_name} disk")
             for new_all_size_partition in requested_disk.all_size_partitions:
                 if not new_all_size_partition.exists:
-                    if disk.available_size <= 0:
+                    if isinstance(disk.available_size, int) and disk.available_size <= 0:
                         raise MachineNotFoundException(
                             f"Unable to create {all_size_partition.mount_name} inside {disk.name}")
                     partition = disk.partitions.create(disk.available_size-10000000)
